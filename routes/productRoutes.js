@@ -33,11 +33,15 @@ router.get("/", async (req, res) => {
 router.post("/", protect, adminOnly, upload.single("image"), async (req, res) => {
   try {
     const { name, price } = req.body;
-    if (!name || !price || !req.file) {
-      return res.status(400).json({ message: "All fields required" });
+
+    // Only require name and price
+    if (!name || !price) {
+      return res.status(400).json({ message: "Name and price are required" });
     }
 
-    const imageUrl = `/uploads/${req.file.filename}`; // path to the saved file
+    // Optional image
+    const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+
     const product = await Product.create({ name, price, image: imageUrl });
     res.status(201).json(product);
   } catch (err) {
