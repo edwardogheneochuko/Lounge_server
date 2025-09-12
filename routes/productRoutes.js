@@ -6,12 +6,10 @@ import path from "path";
 
 const router = express.Router();
 
-// Configure Multer storage
+// Multer storage
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/"); // folder to save uploaded files
-  },
-  filename: function (req, file, cb) {
+  destination: (req, file, cb) => cb(null, "uploads/"),
+  filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(null, uniqueSuffix + path.extname(file.originalname));
   },
@@ -29,20 +27,20 @@ router.get("/", async (req, res) => {
   }
 });
 
-// POST add product (Admin only) with file upload
+// POST add product (admin only)
 router.post("/", protect, adminOnly, upload.single("image"), async (req, res) => {
   try {
     const { name, price } = req.body;
-
-    // Only require name and price
     if (!name || !price) {
       return res.status(400).json({ message: "Name and price are required" });
     }
 
-    // Optional image
+    const priceNum = Number(price);
+    if (isNaN(priceNum)) return res.status(400).json({ message: "Invalid price" });
+
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
-    const product = await Product.create({ name, price, image: imageUrl });
+    const product = await Product.create({ name, price: priceNum, image: imageUrl });
     res.status(201).json(product);
   } catch (err) {
     console.error(err);
