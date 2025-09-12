@@ -9,10 +9,18 @@ import authRoutes from "./routes/authRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
 
-// Load environment variables
+import path from "path";
+import { fileURLToPath } from "url";
+
 dotenv.config();
 
-const app = express();
+const app = express(); // <-- define app first
+
+// Serve uploaded files
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 const PORT = process.env.PORT || 5000;
 
 // Middleware
@@ -28,7 +36,6 @@ app.use("/api/orders", orderRoutes);
 app.get("/", (req, res) => {
   res.send("✅ API is running...");
 });
-
 
 // Database connection & server start
 mongoose
