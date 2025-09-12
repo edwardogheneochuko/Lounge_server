@@ -29,6 +29,7 @@ app.get("/", (req, res) => {
   res.send("✅ API is running...");
 });
 
+
 // Database connection & server start
 mongoose
   .connect(process.env.MONGO_URI, {
