@@ -1,4 +1,3 @@
-// server.js
 import express from "express";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
@@ -7,7 +6,6 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-// Routes
 import authRoutes from "./routes/authRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
@@ -17,35 +15,28 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// File path setup
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ✅ Ensure uploads folder exists
 const uploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir);
   console.log("📂 Created uploads folder");
 }
 
-// ✅ Serve uploaded files
 app.use("/uploads", express.static(uploadsDir));
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 
-// Root route
 app.get("/", (req, res) => {
   res.send("✅ API is running...");
 });
 
-// Database connection & server start
 mongoose
   .connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
