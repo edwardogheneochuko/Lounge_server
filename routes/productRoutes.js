@@ -17,7 +17,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// ✅ GET all products
+// GET all products
 router.get("/", async (req, res) => {
   try {
     const products = await Product.find();
@@ -31,17 +31,13 @@ router.get("/", async (req, res) => {
 router.post("/", protect, adminOnly, upload.single("image"), async (req, res) => {
   try {
     console.log("BODY:", req.body);
-    console.log("FILE:", req.file);  // 👈 see if multer parsed the file
+    console.log("FILE:", req.file);
 
     const { name, price } = req.body;
-    if (!name || !price) {
-      return res.status(400).json({ message: "Name and price are required" });
-    }
+    if (!name || !price) return res.status(400).json({ message: "Name and price required" });
 
     const priceNum = Number(price);
-    if (isNaN(priceNum)) {
-      return res.status(400).json({ message: "Invalid price" });
-    }
+    if (isNaN(priceNum)) return res.status(400).json({ message: "Invalid price" });
 
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
@@ -49,6 +45,7 @@ router.post("/", protect, adminOnly, upload.single("image"), async (req, res) =>
       name,
       price: priceNum,
       image: imageUrl,
+      available: true, // default available
     });
 
     res.status(201).json(product);
@@ -58,13 +55,11 @@ router.post("/", protect, adminOnly, upload.single("image"), async (req, res) =>
   }
 });
 
-
-// ✅ DELETE product
+// DELETE product
 router.delete("/:id", protect, adminOnly, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: "Product not found" });
-
     await product.deleteOne();
     res.json({ message: "Product deleted" });
   } catch (err) {
@@ -72,20 +67,17 @@ router.delete("/:id", protect, adminOnly, async (req, res) => {
   }
 });
 
-// ✅ PATCH toggle availability
+// PATCH toggle availability
 router.patch("/:id/toggle", protect, adminOnly, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: "Product not found" });
-
-    product.available = !product.available; // flip status
+    product.available = !product.available;
     await product.save();
-
     res.json(product);
   } catch (err) {
     res.status(500).json({ message: "Failed to update product status" });
   }
 });
-
 
 export default router;
