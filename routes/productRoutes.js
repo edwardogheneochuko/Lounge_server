@@ -14,10 +14,9 @@ const storage = multer.diskStorage({
     cb(null, uniqueSuffix + path.extname(file.originalname));
   },
 });
-
 const upload = multer({ storage });
 
-// ✅ GET all products
+// GET all products
 router.get("/", async (req, res) => {
   try {
     const products = await Product.find();
@@ -27,7 +26,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// ✅ POST add product (admin only)
+// POST add product
 router.post("/", protect, adminOnly, upload.single("image"), async (req, res) => {
   try {
     const { name, price } = req.body;
@@ -44,7 +43,7 @@ router.post("/", protect, adminOnly, upload.single("image"), async (req, res) =>
       name,
       price: priceNum,
       image: imageUrl,
-      available: true, // default available
+      available: true, // default true
     });
 
     res.status(201).json(product);
@@ -54,7 +53,21 @@ router.post("/", protect, adminOnly, upload.single("image"), async (req, res) =>
   }
 });
 
-// ✅ PATCH toggle availability (admin only)
+// DELETE product
+router.delete("/:id", protect, adminOnly, async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ message: "Product not found" });
+
+    await product.deleteOne();
+    res.json({ message: "Product deleted" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to delete product" });
+  }
+});
+
+// PATCH toggle availability
 router.patch("/:id/availability", protect, adminOnly, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -63,24 +76,10 @@ router.patch("/:id/availability", protect, adminOnly, async (req, res) => {
     product.available = !product.available;
     await product.save();
 
-    res.json(product);
+    res.json({ _id: product._id, available: product.available });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to update availability" });
-  }
-});
-
-// ✅ DELETE product (admin only)
-router.delete("/:id", protect, adminOnly, async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id);
-    if (!product) return res.status(404).json({ message: "Product not found" });
-
-    await product.deleteOne();
-    res.json({ message: "Product deleted successfully" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Failed to delete product" });
   }
 });
 
