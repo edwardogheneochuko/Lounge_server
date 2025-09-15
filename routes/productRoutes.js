@@ -27,9 +27,12 @@ router.get("/", async (req, res) => {
   }
 });
 
-// ✅ POST add product
+// POST add product (admin only)
 router.post("/", protect, adminOnly, upload.single("image"), async (req, res) => {
   try {
+    console.log("BODY:", req.body);
+    console.log("FILE:", req.file);  // 👈 see if multer parsed the file
+
     const { name, price } = req.body;
     if (!name || !price) {
       return res.status(400).json({ message: "Name and price are required" });
@@ -46,15 +49,15 @@ router.post("/", protect, adminOnly, upload.single("image"), async (req, res) =>
       name,
       price: priceNum,
       image: imageUrl,
-      available: true,
     });
 
     res.status(201).json(product);
   } catch (err) {
-    console.error("❌ Product creation error:", err);
-    res.status(500).json({ message: "Failed to add product" });
+    console.error("❌ Product add error:", err);
+    res.status(500).json({ message: "Failed to add product", error: err.message });
   }
 });
+
 
 // ✅ DELETE product
 router.delete("/:id", protect, adminOnly, async (req, res) => {
