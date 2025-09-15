@@ -17,7 +17,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// GET all products
+// ✅ GET all products
 router.get("/", async (req, res) => {
   try {
     const products = await Product.find();
@@ -27,7 +27,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// POST add product (admin only)
+// ✅ POST add product (admin only)
 router.post("/", protect, adminOnly, upload.single("image"), async (req, res) => {
   try {
     const { name, price } = req.body;
@@ -40,11 +40,47 @@ router.post("/", protect, adminOnly, upload.single("image"), async (req, res) =>
 
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
-    const product = await Product.create({ name, price: priceNum, image: imageUrl });
+    const product = await Product.create({
+      name,
+      price: priceNum,
+      image: imageUrl,
+      available: true, // default available
+    });
+
     res.status(201).json(product);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to add product" });
+  }
+});
+
+// ✅ PATCH toggle availability (admin only)
+router.patch("/:id/availability", protect, adminOnly, async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ message: "Product not found" });
+
+    product.available = !product.available;
+    await product.save();
+
+    res.json(product);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to update availability" });
+  }
+});
+
+// ✅ DELETE product (admin only)
+router.delete("/:id", protect, adminOnly, async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ message: "Product not found" });
+
+    await product.deleteOne();
+    res.json({ message: "Product deleted successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to delete product" });
   }
 });
 
