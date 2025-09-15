@@ -6,7 +6,7 @@ import path from "path";
 
 const router = express.Router();
 
-// Multer storage
+// Multer storage config
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, "uploads/"),
   filename: (req, file, cb) => {
@@ -14,9 +14,10 @@ const storage = multer.diskStorage({
     cb(null, uniqueSuffix + path.extname(file.originalname));
   },
 });
+
 const upload = multer({ storage });
 
-// GET all products
+// ✅ GET all products
 router.get("/", async (req, res) => {
   try {
     const products = await Product.find();
@@ -26,7 +27,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// POST add product
+// ✅ POST add product
 router.post("/", protect, adminOnly, upload.single("image"), async (req, res) => {
   try {
     const { name, price } = req.body;
@@ -35,7 +36,9 @@ router.post("/", protect, adminOnly, upload.single("image"), async (req, res) =>
     }
 
     const priceNum = Number(price);
-    if (isNaN(priceNum)) return res.status(400).json({ message: "Invalid price" });
+    if (isNaN(priceNum)) {
+      return res.status(400).json({ message: "Invalid price" });
+    }
 
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
@@ -43,17 +46,17 @@ router.post("/", protect, adminOnly, upload.single("image"), async (req, res) =>
       name,
       price: priceNum,
       image: imageUrl,
-      available: true, // default true
+      available: true,
     });
 
     res.status(201).json(product);
   } catch (err) {
-    console.error(err);
+    console.error("❌ Product creation error:", err);
     res.status(500).json({ message: "Failed to add product" });
   }
 });
 
-// DELETE product
+// ✅ DELETE product
 router.delete("/:id", protect, adminOnly, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -62,24 +65,21 @@ router.delete("/:id", protect, adminOnly, async (req, res) => {
     await product.deleteOne();
     res.json({ message: "Product deleted" });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ message: "Failed to delete product" });
   }
 });
 
-// PATCH toggle availability
-router.patch("/:id/availability", protect, adminOnly, async (req, res) => {
+// ✅ PATCH toggle availability
+router.patch("/:id/toggle", protect, adminOnly, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: "Product not found" });
 
     product.available = !product.available;
     await product.save();
-
-    res.json({ _id: product._id, available: product.available });
+    res.json(product);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Failed to update availability" });
+    res.status(500).json({ message: "Failed to update product status" });
   }
 });
 

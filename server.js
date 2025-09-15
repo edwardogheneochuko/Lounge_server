@@ -1,4 +1,3 @@
-// server.js
 import express from "express";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
@@ -14,7 +13,7 @@ import { fileURLToPath } from "url";
 
 dotenv.config();
 
-const app = express(); // <-- define app first
+const app = express();
 
 // Serve uploaded files
 const __filename = fileURLToPath(import.meta.url);
@@ -37,7 +36,7 @@ app.get("/", (req, res) => {
   res.send("✅ API is running...");
 });
 
-// Database connection & server start
+// Database connection
 mongoose
   .connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
@@ -50,5 +49,5 @@ mongoose
   })
   .catch((err) => {
     console.error("❌ MongoDB Error:", err.message);
-    process.exit(1); // Exit so Render knows it failed
+    process.exit(1);
   });
