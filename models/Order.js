@@ -10,7 +10,7 @@ const orderSchema = new mongoose.Schema(
       },
     ],
     total: { type: Number, required: true },
-    address: String,
+    address: { type: String, required: true },
     status: { type: String, default: "pending" },
   },
   { timestamps: true }
