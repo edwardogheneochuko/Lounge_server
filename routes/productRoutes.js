@@ -7,11 +7,9 @@ import streamifier from "streamifier";
 
 const router = express.Router();
 
-// Multer memory storage
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// GET all products
 router.get("/", async (req, res) => {
   try {
     const products = await Product.find();
@@ -21,7 +19,6 @@ router.get("/", async (req, res) => {
   }
 });
 
-// POST add product (admin only)
 router.post("/", protect, adminOnly, upload.single("image"), async (req, res) => {
   try {
     const { name, price } = req.body;
@@ -75,7 +72,6 @@ router.delete("/:id", protect, adminOnly, async (req, res) => {
   }
 });
 
-// PATCH toggle availability
 router.patch("/:id/toggle", protect, adminOnly, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);

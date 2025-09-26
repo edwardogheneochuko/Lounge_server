@@ -4,7 +4,6 @@ import { protect, adminOnly } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// ✅ User places an order
 router.post("/", protect, async (req, res) => {
   try {
     const { items, total, address } = req.body;
@@ -17,7 +16,7 @@ router.post("/", protect, async (req, res) => {
       items,
       total,
       address,
-      status: "pending", // default
+      status: "pending", 
     });
 
     res.status(201).json(order);
@@ -26,7 +25,6 @@ router.post("/", protect, async (req, res) => {
   }
 });
 
-// ✅ User gets their own orders
 router.get("/my-orders", protect, async (req, res) => {
   try {
     const orders = await Order.find({ user: req.user._id })
