@@ -2,19 +2,12 @@ import express from "express";
 import Product from "../models/Product.js";
 import { protect, adminOnly } from "../middleware/authMiddleware.js";
 import multer from "multer";
-import path from "path";
+import cloudinary from "../config/cloudinary.js";
 
 const router = express.Router();
 
-// Multer storage config
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads/"),
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  },
-});
-
+// Use multer memory storage (no local uploads)
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // GET all products
@@ -30,22 +23,51 @@ router.get("/", async (req, res) => {
 // POST add product (admin only)
 router.post("/", protect, adminOnly, upload.single("image"), async (req, res) => {
   try {
-    console.log("BODY:", req.body);
-    console.log("FILE:", req.file);
-
     const { name, price } = req.body;
     if (!name || !price) return res.status(400).json({ message: "Name and price required" });
 
     const priceNum = Number(price);
     if (isNaN(priceNum)) return res.status(400).json({ message: "Invalid price" });
 
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+    let imageUrl = null;
 
+    if (req.file) {
+      const result = await cloudinary.uploader.upload_stream(
+        { folder: "products" },
+        (error, result) => {
+          if (error) throw error;
+          imageUrl = result.secure_url;
+        }
+      );
+
+      // Cloudinary expects a stream
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: "products" },
+        async (error, result) => {
+          if (error) return res.status(500).json({ message: "Image upload failed" });
+          imageUrl = result.secure_url;
+
+          const product = await Product.create({
+            name,
+            price: priceNum,
+            image: imageUrl,
+            available: true,
+          });
+
+          return res.status(201).json(product);
+        }
+      );
+
+      stream.end(req.file.buffer);
+      return; // exit here because response is inside the callback
+    }
+
+    // If no image, just save product
     const product = await Product.create({
       name,
       price: priceNum,
-      image: imageUrl,
-      available: true, // default available
+      image: null,
+      available: true,
     });
 
     res.status(201).json(product);
