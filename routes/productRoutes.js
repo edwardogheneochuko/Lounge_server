@@ -3,10 +3,11 @@ import Product from "../models/Product.js";
 import { protect, adminOnly } from "../middleware/authMiddleware.js";
 import multer from "multer";
 import cloudinary from "../config/cloudinary.js";
+import streamifier from "streamifier";
 
 const router = express.Router();
 
-// Use multer memory storage (no local uploads)
+// Multer memory storage
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
@@ -24,49 +25,34 @@ router.get("/", async (req, res) => {
 router.post("/", protect, adminOnly, upload.single("image"), async (req, res) => {
   try {
     const { name, price } = req.body;
-    if (!name || !price) return res.status(400).json({ message: "Name and price required" });
+    if (!name || !price) {
+      return res.status(400).json({ message: "Name and price required" });
+    }
 
     const priceNum = Number(price);
-    if (isNaN(priceNum)) return res.status(400).json({ message: "Invalid price" });
+    if (isNaN(priceNum)) {
+      return res.status(400).json({ message: "Invalid price" });
+    }
 
     let imageUrl = null;
 
     if (req.file) {
-      const result = await cloudinary.uploader.upload_stream(
-        { folder: "products" },
-        (error, result) => {
-          if (error) throw error;
-          imageUrl = result.secure_url;
-        }
-      );
-
-      // Cloudinary expects a stream
-      const stream = cloudinary.uploader.upload_stream(
-        { folder: "products" },
-        async (error, result) => {
-          if (error) return res.status(500).json({ message: "Image upload failed" });
-          imageUrl = result.secure_url;
-
-          const product = await Product.create({
-            name,
-            price: priceNum,
-            image: imageUrl,
-            available: true,
-          });
-
-          return res.status(201).json(product);
-        }
-      );
-
-      stream.end(req.file.buffer);
-      return; // exit here because response is inside the callback
+      imageUrl = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: "products" },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result.secure_url);
+          }
+        );
+        streamifier.createReadStream(req.file.buffer).pipe(stream);
+      });
     }
 
-    // If no image, just save product
     const product = await Product.create({
       name,
       price: priceNum,
-      image: null,
+      image: imageUrl,
       available: true,
     });
 
