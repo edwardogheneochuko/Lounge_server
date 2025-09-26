@@ -7,9 +7,11 @@ import streamifier from "streamifier";
 
 const router = express.Router();
 
+// Multer memory storage (no local files)
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
+// GET all products
 router.get("/", async (req, res) => {
   try {
     const products = await Product.find();
@@ -19,6 +21,7 @@ router.get("/", async (req, res) => {
   }
 });
 
+// POST add product (admin only)
 router.post("/", protect, adminOnly, upload.single("image"), async (req, res) => {
   try {
     const { name, price } = req.body;
@@ -27,12 +30,11 @@ router.post("/", protect, adminOnly, upload.single("image"), async (req, res) =>
     }
 
     const priceNum = Number(price);
-    if (isNaN(priceNum)) {
-      return res.status(400).json({ message: "Invalid price" });
-    }
+    if (isNaN(priceNum)) return res.status(400).json({ message: "Invalid price" });
 
     let imageUrl = null;
 
+    // Upload image to Cloudinary if provided
     if (req.file) {
       imageUrl = await new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
@@ -46,10 +48,11 @@ router.post("/", protect, adminOnly, upload.single("image"), async (req, res) =>
       });
     }
 
+    // Create product
     const product = await Product.create({
       name,
       price: priceNum,
-      image: imageUrl,
+      image: imageUrl, // will be null if no image
       available: true,
     });
 
@@ -72,6 +75,7 @@ router.delete("/:id", protect, adminOnly, async (req, res) => {
   }
 });
 
+// PATCH toggle availability
 router.patch("/:id/toggle", protect, adminOnly, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
