@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 dotenv.config(); 
 
 cloudinary.config({
-  secure: true, // optional but recommended
+  secure: true,
 });
 
 export default cloudinary;
