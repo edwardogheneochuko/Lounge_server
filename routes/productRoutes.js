@@ -1,15 +1,8 @@
 import express from "express";
 import Product from "../models/Product.js";
 import { protect, adminOnly } from "../middleware/authMiddleware.js";
-import multer from "multer";
-import cloudinary from "../config/cloudinary.js";
-import streamifier from "streamifier";
 
 const router = express.Router();
-
-// Multer memory storage (no local files)
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
 
 // GET all products
 router.get("/", async (req, res) => {
@@ -21,38 +14,24 @@ router.get("/", async (req, res) => {
   }
 });
 
-// POST add product (admin only)
-router.post("/", protect, adminOnly, upload.single("image"), async (req, res) => {
+// POST add product (expects JSON, no file upload here)
+router.post("/", protect, adminOnly, async (req, res) => {
   try {
-    const { name, price } = req.body;
+    const { name, price, image } = req.body;
+
     if (!name || !price) {
       return res.status(400).json({ message: "Name and price required" });
     }
 
     const priceNum = Number(price);
-    if (isNaN(priceNum)) return res.status(400).json({ message: "Invalid price" });
-
-    let imageUrl = null;
-
-    // Upload image to Cloudinary if provided
-    if (req.file) {
-      imageUrl = await new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          { folder: "products" },
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result.secure_url);
-          }
-        );
-        streamifier.createReadStream(req.file.buffer).pipe(stream);
-      });
+    if (isNaN(priceNum)) {
+      return res.status(400).json({ message: "Invalid price" });
     }
 
-    // Create product
     const product = await Product.create({
       name,
       price: priceNum,
-      image: imageUrl, // will be null if no image
+      image: image || null, // Cloudinary URL already provided
       available: true,
     });
 
