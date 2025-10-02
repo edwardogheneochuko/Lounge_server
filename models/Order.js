@@ -1,3 +1,4 @@
+// models/Order.js
 import mongoose from "mongoose";
 
 const orderSchema = new mongoose.Schema(
@@ -5,13 +6,26 @@ const orderSchema = new mongoose.Schema(
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     items: [
       {
-        product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
-        quantity: { type: Number, required: true, min: 1 },
+        product: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
+        name: String,
+        price: Number,
+        quantity: Number,
       },
     ],
+    address: {
+      fullName: String,
+      phone: String,
+      street: String,
+      city: String,
+      state: String,
+      zip: String,
+    },
     total: { type: Number, required: true },
-    address: { type: String, required: true },
-    status: { type: String, default: "pending" },
+    status: {
+      type: String,
+      enum: ["pending", "processing", "shipped", "delivered", "cancelled"],
+      default: "pending",
+    },
   },
   { timestamps: true }
 );

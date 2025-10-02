@@ -4,6 +4,11 @@ import { protect, adminOnly } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
+/**
+ * @route   POST /api/orders
+ * @desc    Create new order (checkout)
+ * @access  Private (user)
+ */
 router.post("/", protect, async (req, res) => {
   try {
     const { items, total, address } = req.body;
@@ -16,48 +21,61 @@ router.post("/", protect, async (req, res) => {
       items,
       total,
       address,
-      status: "pending", 
+      status: "pending",
     });
 
     res.status(201).json(order);
   } catch (err) {
+    console.error("Checkout error:", err);
     res.status(500).json({ message: "Failed to create order" });
   }
 });
 
+/**
+ * @route   GET /api/orders/my-orders
+ * @desc    Get logged-in user's orders
+ * @access  Private (user)
+ */
 router.get("/my-orders", protect, async (req, res) => {
   try {
     const orders = await Order.find({ user: req.user._id })
-      .populate("items.product", "name price image")
-      .populate("user", "email");
-
+      .populate("items.product", "name price image");
     res.json(orders);
   } catch (err) {
+    console.error("Fetch my orders error:", err);
     res.status(500).json({ message: "Failed to fetch your orders" });
   }
 });
 
-// ✅ Admin gets all orders
+/**
+ * @route   GET /api/orders
+ * @desc    Get all orders (admin)
+ * @access  Private/Admin
+ */
 router.get("/", protect, adminOnly, async (req, res) => {
   try {
     const orders = await Order.find()
       .populate("items.product", "name price image")
       .populate("user", "email");
-
     res.json(orders);
   } catch (err) {
-    res.status(500).json({ message: "Failed to fetch all orders" });
+    console.error("Fetch all orders error:", err);
+    res.status(500).json({ message: "Failed to fetch orders" });
   }
 });
 
-// ✅ Admin updates order status
+/**
+ * @route   PATCH /api/orders/:id/status
+ * @desc    Update order status (admin)
+ * @access  Private/Admin
+ */
+// PATCH /api/orders/:id/status
 router.patch("/:id/status", protect, adminOnly, async (req, res) => {
   try {
     const { status } = req.body;
     const validStatuses = ["pending", "processing", "shipped", "delivered", "cancelled"];
-
     if (!validStatuses.includes(status)) {
-      return res.status(400).json({ message: "Invalid status value" });
+      return res.status(400).json({ message: "Invalid status" });
     }
 
     const order = await Order.findById(req.params.id);
@@ -68,7 +86,27 @@ router.patch("/:id/status", protect, adminOnly, async (req, res) => {
 
     res.json(order);
   } catch (err) {
-    res.status(500).json({ message: "Failed to update order status" });
+    console.error("Update order status error:", err);
+    res.status(500).json({ message: "Failed to update status" });
+  }
+});
+
+
+/**
+ * @route   DELETE /api/orders/:id
+ * @desc    Delete order (admin)
+ * @access  Private/Admin
+ */
+router.delete("/:id", protect, adminOnly, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    await order.deleteOne();
+    res.json({ message: "Order deleted" });
+  } catch (err) {
+    console.error("Delete order error:", err);
+    res.status(500).json({ message: "Failed to delete order" });
   }
 });
 
