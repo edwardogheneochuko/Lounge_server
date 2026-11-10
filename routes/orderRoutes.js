@@ -1,26 +1,86 @@
 import express from "express";
+import mongoose from "mongoose";
 import Order from "../models/Order.js";
+import Product from "../models/Product.js";
 import { protect, adminOnly } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
+const MAX_QTY_PER_ITEM = 100;
+const REQUIRED_ADDRESS_FIELDS = ["phone", "street", "city", "state"];
+const ADDRESS_FIELDS = ["fullName", ...REQUIRED_ADDRESS_FIELDS, "zip"];
+
 /**
  * @route   POST /api/orders
- * @desc    Create new order (checkout)
+ * @desc    Create new order (checkout). Prices and total are taken from the database,
+ *          never from the client; the client only sends product ids and quantities.
  * @access  Private (user)
  */
 router.post("/", protect, async (req, res) => {
   try {
-    const { items, total, address } = req.body;
-    if (!items || !total || !address) {
-      return res.status(400).json({ message: "Invalid order data" });
+    const { items, address } = req.body;
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: "Your cart is empty" });
     }
+    if (!address || typeof address !== "object") {
+      return res.status(400).json({ message: "Shipping address is required" });
+    }
+
+    // Merge duplicate lines and validate ids/quantities
+    const quantities = new Map();
+    for (const item of items) {
+      const id = String(item?.product ?? "");
+      const qty = Number(item?.quantity);
+      if (!mongoose.isValidObjectId(id)) {
+        return res.status(400).json({ message: "Invalid product in cart" });
+      }
+      if (!Number.isInteger(qty) || qty < 1) {
+        return res.status(400).json({ message: "Invalid quantity in cart" });
+      }
+      quantities.set(id, (quantities.get(id) || 0) + qty);
+    }
+    for (const qty of quantities.values()) {
+      if (qty > MAX_QTY_PER_ITEM) {
+        return res.status(400).json({ message: `Maximum ${MAX_QTY_PER_ITEM} of each item per order` });
+      }
+    }
+
+    const products = await Product.find({ _id: { $in: [...quantities.keys()] } });
+    const productsById = new Map(products.map((p) => [String(p._id), p]));
+
+    const orderItems = [];
+    let total = 0;
+    for (const [id, quantity] of quantities) {
+      const product = productsById.get(id);
+      if (!product) {
+        return res.status(400).json({ message: "A product in your cart no longer exists" });
+      }
+      if (!product.available) {
+        return res.status(400).json({ message: `${product.name} is out of stock` });
+      }
+      orderItems.push({ product: product._id, name: product.name, price: product.price, quantity });
+      total += product.price * quantity;
+    }
+
+    const cleanAddress = {};
+    for (const field of ADDRESS_FIELDS) {
+      const value = address[field];
+      if (value !== undefined && typeof value !== "string") {
+        return res.status(400).json({ message: `Invalid ${field}` });
+      }
+      cleanAddress[field] = value?.trim() || "";
+    }
+    if (REQUIRED_ADDRESS_FIELDS.some((f) => !cleanAddress[f])) {
+      return res.status(400).json({ message: "Please complete your shipping details" });
+    }
+    if (!cleanAddress.fullName) cleanAddress.fullName = req.user.username;
 
     const order = await Order.create({
       user: req.user._id,
-      items,
+      items: orderItems,
       total,
-      address,
+      address: cleanAddress,
       status: "pending",
     });
 
@@ -39,6 +99,7 @@ router.post("/", protect, async (req, res) => {
 router.get("/my-orders", protect, async (req, res) => {
   try {
     const orders = await Order.find({ user: req.user._id })
+      .sort({ createdAt: -1 })
       .populate("items.product", "name price image");
     res.json(orders);
   } catch (err) {
@@ -55,6 +116,7 @@ router.get("/my-orders", protect, async (req, res) => {
 router.get("/", protect, adminOnly, async (req, res) => {
   try {
     const orders = await Order.find()
+      .sort({ createdAt: -1 })
       .populate("items.product", "name price image")
       .populate("user", "email");
     res.json(orders);
